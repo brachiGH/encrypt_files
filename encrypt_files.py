@@ -51,7 +51,7 @@ if __name__ == "__main__":
             chosenfiles = showfiles()
             cipher.decrypt(chosenfiles, chosendate['date'])
         else:
-            print('No files encrypted with that password!')
+            print('No files are encrypted with that password!')
     else:
         print('\n  "{}" is an invalide command!'.format(command))
 

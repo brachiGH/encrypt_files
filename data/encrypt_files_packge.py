@@ -4,6 +4,7 @@ BASE_DIR = Path('')
 DESKTOP_PATH = Path.home() / 'Desktop'
 
 from datetime import date
+import copy
 import json
 from cryptography.fernet import Fernet
 from hashlib import sha512
@@ -25,7 +26,7 @@ class cipher:
             for file in folder['files']:
                 if file['password'] == self.password:
                     files.append(file['file'])
-            if len(file) != 0:
+            if len(files) != 0:
                 folders.append({'date':folder['date'], 'files':files})
         return folders
 
@@ -33,17 +34,18 @@ class cipher:
         BASE_TOENCRYPT_DIR = DESKTOP_PATH / 'files to encrypt'
         BASE_ENCRYPT_DIR = BASE_DIR / 'encrypted files' / self.today
         getfilestoencrypt(self, BASE_TOENCRYPT_DIR)
+        print(self.filestoencrypt)
         createdate(BASE_ENCRYPT_DIR)
         savefolder(self)
 
         for file in self.filestoencrypt:
-            self.encryptfile(file, BASE_ENCRYPT_DIR, BASE_TOENCRYPT_DIR)
+            self.encryptfile(buildpath(file), BASE_ENCRYPT_DIR, BASE_TOENCRYPT_DIR)
         savedata(self.data)
 
 
     def encryptfile(self, file, BASE_ENCRYPT_DIR, BASE_TOENCRYPT_DIR):
-        toencrypt = Path(str(BASE_TOENCRYPT_DIR)+file).resolve()
-        encrypted = Path(str(BASE_ENCRYPT_DIR)+file).resolve()
+        toencrypt = BASE_TOENCRYPT_DIR / file
+        encrypted = BASE_ENCRYPT_DIR / file
         createParentDir(encrypted)
 
         with open(toencrypt, 'rb') as f:
@@ -65,11 +67,11 @@ class cipher:
         createdate(BASE_DECRYPT_DIR)
 
         for file in filestodecrypt:
-            self.decryptfile(file, BASE_DECRYPT_DIR, BASE_ENCRYPT_DIR)
+            self.decryptfile(buildpath(file), BASE_DECRYPT_DIR, BASE_ENCRYPT_DIR)
 
     def decryptfile(self, file, BASE_DECRYPT_DIR, BASE_ENCRYPT_DIR):
-        encrypted = Path(str(BASE_ENCRYPT_DIR)+file).resolve()
-        decrypted = Path(str(BASE_DECRYPT_DIR)+file).resolve()
+        encrypted = BASE_ENCRYPT_DIR / file
+        decrypted = BASE_DECRYPT_DIR / file
         createParentDir(decrypted)
 
         if encrypted.is_file():
@@ -85,7 +87,6 @@ class cipher:
                 print('  succufuly decrypted:  ', file)
             except:
                 print('  invalide cipher:  ', file)
-
 
 
 def getcipher(password):
@@ -121,14 +122,36 @@ def savefolder(self):
 
     self.data['folders'][today] = {"date": self.today, "files": files}
 
+def mergePath(BASE_ENCRYPT_DIR, file):
+    return Path(str(BASE_ENCRYPT_DIR)+str(Path(file))).resolve()
 
-def getfilestoencrypt(self, DIR):
+def getfilestoencrypt(self, DIR, f = []):
     DIR_LIST = DIR.iterdir()
+    d = []
+
     for x in DIR_LIST:
         if x.is_dir():
-            getfilestoencrypt(self, x)
+            d.append(x)
         else:
-            self.filestoencrypt.append(str(x).replace(str(DESKTOP_PATH / 'files to encrypt'), ''))
+            self.filestoencrypt.append(f+[x.name])
+    
+    for x in d:
+        getfilestoencrypt(self, x, getfoldersparents(x)+[x.name])
+
+def getfoldersparents(x):
+    l = []
+    x = x.parent
+    while x != DESKTOP_PATH/'files to encrypt':
+        l.append(x.name)
+        x = x.parent
+    l.reverse()
+    return l
+
+def buildpath(path):
+    DIR = Path('')
+    for dir in path:
+        DIR = DIR / dir
+    return DIR
 
 def createdate(DIR):
     print(DIR, '\n')
@@ -175,5 +198,6 @@ def inputgetmultipleint(msg, range_=False):
                     r.append(int(x))
             else:
                 print('Must enter a number!')
-        return r
+        if len(r) != 0:
+            return r
 
